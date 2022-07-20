@@ -1,3 +1,4 @@
+##### Import your libraries #####
 import dash
 from dash.dependencies import Input, Output, State
 from dash import dcc, html
@@ -9,162 +10,79 @@ from tabs import tab_1, tab_2, tab_3, tab_4
 from utils import display_eval_metrics, Viridis
 
 
-df=pd.read_csv('resources/final_probs.csv')
+##### Define your variables #####
+tabtitle = 'Titanic!'
+Viridis=[
+"#440154", "#440558", "#450a5c", "#450e60", "#451465", "#461969",
+"#461d6d", "#462372", "#472775", "#472c7a", "#46307c", "#45337d",
+"#433880", "#423c81", "#404184", "#3f4686", "#3d4a88", "#3c4f8a",
+"#3b518b", "#39558b", "#37598c", "#365c8c", "#34608c", "#33638d",
+"#31678d", "#2f6b8d", "#2d6e8e", "#2c718e", "#2b748e", "#29788e",
+"#287c8e", "#277f8e", "#25848d", "#24878d", "#238b8d", "#218f8d",
+"#21918d", "#22958b", "#23988a", "#239b89", "#249f87", "#25a186",
+"#25a584", "#26a883", "#27ab82", "#29ae80", "#2eb17d", "#35b479",
+"#3cb875", "#42bb72", "#49be6e", "#4ec16b", "#55c467", "#5cc863",
+"#61c960", "#6bcc5a", "#72ce55", "#7cd04f", "#85d349", "#8dd544",
+"#97d73e", "#9ed93a", "#a8db34", "#b0dd31", "#b8de30", "#c3df2e",
+"#cbe02d", "#d6e22b", "#e1e329", "#eae428", "#f5e626", "#fde725"]
+# source: https://bhaskarvk.github.io/colormap/reference/colormap.html
+sourceurl = 'https://www.kaggle.com/c/titanic'
+githublink = 'https://github.com/plotly-dash-apps/505-titanic-survival-classifier'
+choices=['Comparison of Models']
 
 
-## Instantiante Dash
+##### Import dataframe #####
+df=pd.read_csv('resources/compare_models.csv', index_col=0)
+
+
+##### Set up the bar chart #####
+mydata1 = go.Bar(
+    x=df.loc['F1 score'].index,
+    y=df.loc['F1 score'],
+    name=df.index[0],
+    marker=dict(color=Viridis[50])
+)
+mydata2 = go.Bar(
+    x=df.loc['Accuracy'].index,
+    y=df.loc['Accuracy'],
+    name=df.index[1],
+    marker=dict(color=Viridis[30])
+)
+mydata3 = go.Bar(
+    x=df.loc['AUC score'].index,
+    y=df.loc['AUC score'],
+    name=df.index[2],
+    marker=dict(color=Viridis[10])
+)
+mylayout = go.Layout(
+    title='Random Forest model yields the best evaluation statistics',
+    xaxis = dict(title = 'Predictive models'), # x-axis label
+    yaxis = dict(title = 'Score'), # y-axis label
+    
+)
+fig = go.Figure(data=[mydata1, mydata2, mydata3], layout=mylayout)
+fig
+
+
+##### Instantiate the app #####
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 server = app.server
-app.config['suppress_callback_exceptions'] = True
-app.title='Titanic!'
+app.title=tabtitle
 
 
-## Layout
+##### Layout of the app #####
 app.layout = html.Div([
-    html.H1('Surviving the Titanic'),
-    dcc.Tabs(id="tabs-template", value='tab-1-template', children=[
-        dcc.Tab(label='Introduction', value='tab-1-template'),
-        dcc.Tab(label='Model Evaluation', value='tab-2-template'),
-        dcc.Tab(label='Testing Results', value='tab-3-template'),
-        dcc.Tab(label='User Inputs', value='tab-4-template'),
-    ]),
-    html.Div(id='tabs-content-template')
+    html.H2('Surviving the Titanic - Model Evaluation Statistics'),
+    html.Br(),
+    dcc.Graph(id='display-value', 
+        figure=fig),
+    html.A('Code on Github', href=githublink),
+    html.Br(),
+    html.A("Data Source", href=sourceurl),
 ])
 
 
-############ Callbacks
-
-@app.callback(Output('tabs-content-template', 'children'),
-              [Input('tabs-template', 'value')])
-def render_content(tab):
-    if tab == 'tab-1-template':
-        return tab_1.tab_1_layout
-    elif tab == 'tab-2-template':
-        return tab_2.tab_2_layout
-    elif tab == 'tab-3-template':
-        return tab_3.tab_3_layout
-    elif tab == 'tab-4-template':
-        return tab_4.tab_4_layout
-
-# Tab 2 callbacks
-
-@app.callback(Output('page-2-graphic', 'figure'),
-              [Input('page-2-radios', 'value')])
-def radio_results(value):
-    return display_eval_metrics(value)
-
-# Tab 3 callback # 1
-@app.callback(Output('page-3-content', 'children'),
-              [Input('page-3-dropdown', 'value')])
-def page_3_dropdown(value):
-    name=df.loc[value, 'Name']
-    return f'You have selected "{name}"'
-
-# Tab 3 callback # 2
-@app.callback(Output('survival-prob', 'children'),
-              [Input('page-3-dropdown', 'value')])
-def page_3_survival(value):
-    survival=df.loc[value, 'survival_prob']
-    actual=df.loc[value, 'Survived']
-    survival=round(survival*100)
-    return f'Predicted probability of survival is {survival}%, Actual survival is {actual}'
-
-# Tab 3 callback # 2
-@app.callback(Output('survival-characteristics', 'children'),
-              [Input('page-3-dropdown', 'value')])
-def page_3_characteristics(value):
-    mydata=df.drop(['Survived', 'survival_prob', 'Name'], axis=1)
-    mydata=df[['Siblings and Spouses',
-                 'female',
-                 'Cabin Class 2',
-                 'Cabin Class 3',
-                 'Cherbourg',
-                 'Queenstown',
-                 'Age (20, 28]',
-                 'Age (28, 38]',
-                 'Age (38, 80]',
-                 'Mrs.',
-                 'Miss',
-                 'VIP']]
-    return html.Table(
-        [html.Tr([html.Th(col) for col in mydata.columns])] +
-        [html.Tr([
-            html.Td(mydata.iloc[value][col]) for col in mydata.columns
-        ])]
-    )
-
-# Tab 4 Callback # 1
-@app.callback(Output('user-inputs-box', 'children'),
-            [
-              Input('family_dropdown', 'value'),
-              Input('age_dropdown', 'value'),
-              Input('cabin_dropdown', 'value'),
-              Input('title_radio', 'value'),
-              Input('sex_radio', 'value'),
-              Input('port_radio', 'value')
-              ])
-def update_user_table(family, age, cabin, title, sex, embark):
-    return html.Div([
-        html.Div(f'Family Members: {family}'),
-        html.Div(f'Age: {age}'),
-        html.Div(f'Cabin Class: {cabin}'),
-        html.Div(f'Title: {title}'),
-        html.Div(f'Sex: {sex}'),
-        html.Div(f'Embarkation: {embark}'),
-    ])
-
-# Tab 4 Callback # 2
-@app.callback(Output('final_prediction', 'children'),
-            [
-              Input('family_dropdown', 'value'),
-              Input('age_dropdown', 'value'),
-              Input('cabin_dropdown', 'value'),
-              Input('title_radio', 'value'),
-              Input('sex_radio', 'value'),
-              Input('port_radio', 'value')
-              ])
-def final_prediction(family, age, cabin, title, sex, embark):
-    inputs=[family, age, cabin, title, sex, embark]
-    keys=['family', 'age', 'cabin', 'title', 'sex', 'embark']
-    dict6=dict(zip(keys, inputs))
-    df=pd.DataFrame([dict6])
-    # create the features we'll need to run our logreg model.
-    df['age']=pd.to_numeric(df.age, errors='coerce')
-    df['family']=pd.to_numeric(df.family, errors='coerce')
-    df['third']=np.where(df.cabin=='Third',1,0)
-    df['second']=np.where(df.cabin=='Second',1,0)
-    df['female']=np.where(df.sex=='Female',1,0)
-    df['cherbourg']=np.where(df.embark=='Cherbourg',1,0)
-    df['queenstown']=np.where(df.embark=='Queenstown',1,0)
-    df['age2028']=np.where((df.age>=20)&(df.age<28),1,0)
-    df['age2838']=np.where((df.age>=28)&(df.age<38),1,0)
-    df['age3880']=np.where((df.age>=38)&(df.age<80),1,0)
-    df['mrs']=np.where(df.title=='Mrs.', 1,0)
-    df['miss']=np.where(df.title=='Miss', 1,0)
-    df['vip']=np.where(df.title=='VIP', 1,0)
-    # drop unnecessary columns, and reorder columns to match the logreg model.
-    df=df.drop(['age', 'cabin', 'title', 'sex', 'embark'], axis=1)
-    df=df[['family', 'female', 'second', 'third', 'cherbourg', 'queenstown', 'age2028',
-    'age2838', 'age3880', 'mrs', 'miss', 'vip']]
-    # unpickle the final model
-    file = open('resources/final_logreg_model.pkl', 'rb')
-    logreg=pickle.load(file)
-    file.close()
-    # predict on the user-input values (need to create an array for this)
-    firstrow=df.loc[0]
-    print('firstrow', firstrow)
-    myarray=firstrow.values
-    print('myarray', myarray)
-    thisarray=myarray.reshape((1, myarray.shape[0]))
-    print('thisarray', thisarray)
-
-    prob=logreg.predict_proba(thisarray)
-    final_prob=round(float(prob[0][1])*100,1)
-    return(f'Probability of Survival: {final_prob}%')
-
-
-
-####### Run the app #######
+####### Deploy the app #######
 if __name__ == '__main__':
     app.run_server(debug=True)
